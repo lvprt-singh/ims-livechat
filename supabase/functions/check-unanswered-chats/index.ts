@@ -10,7 +10,7 @@ Deno.serve(async () => {
 
   const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-  // Find open chats older than 10 mins with no mechanic reply
+  // Find open chats older than 10 mins, email not yet sent
   const { data: chats, error } = await supabase
     .from("chats")
     .select(`
@@ -21,6 +21,7 @@ Deno.serve(async () => {
       messages (sender)
     `)
     .eq("status", "open")
+    .eq("email_sent", false)
     .lt("created_at", tenMinsAgo);
 
   if (error) {
@@ -37,7 +38,6 @@ Deno.serve(async () => {
     return new Response("No unanswered chats", { status: 200 });
   }
 
-  // Send one email listing all unanswered chats
   const chatList = unanswered.map((chat) =>
     `- ${chat.customers.name} (${chat.customers.phone}) — ${chat.page_url} — started at ${new Date(chat.created_at).toLocaleString("en-AU", { timeZone: "Australia/Melbourne" })}`
   ).join("\n");
@@ -62,6 +62,13 @@ Deno.serve(async () => {
     console.error("Resend error:", await res.text());
     return new Response("Email failed", { status: 500 });
   }
+
+  // Mark all emailed chats so they don't get emailed again
+  const ids = unanswered.map((c) => c.id);
+  await supabase
+    .from("chats")
+    .update({ email_sent: true })
+    .in("id", ids);
 
   return new Response(`Email sent for ${unanswered.length} unanswered chats`, { status: 200 });
 });

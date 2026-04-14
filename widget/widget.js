@@ -1,4 +1,4 @@
-(function () {
+document.addEventListener("DOMContentLoaded", function () {
   const SUPABASE_URL = "https://lfeaeufshnclbabmxlhc.supabase.co";
   const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmZWFldWZzaG5jbGJhYm14bGhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMTA0MjMsImV4cCI6MjA5MTY4NjQyM30.EMrSYJmK5vitwZsCd8_so8WfvARlR9C96BxZHBo-FPs";
 
@@ -350,4 +350,4 @@
     await sendMessage(null, urlData.publicUrl);
   };
 
-})();
+});

@@ -332,7 +332,7 @@ document.addEventListener("DOMContentLoaded", function () {
       image_url: imageUrl || null,
       source: "widget",
     });
-    await supabase.from("chats").update({ last_message_at: new Date().toISOString() }).eq("id", chatId);
+    await supabase.from("chats").update({ last_message_at: new Date().toISOString(), has_unread: true }).eq("id", chatId);
   }
 
   document.getElementById("ims-chat-send").onclick = async () => {

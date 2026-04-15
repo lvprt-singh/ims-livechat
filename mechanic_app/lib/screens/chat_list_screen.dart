@@ -75,69 +75,77 @@ class _ChatListScreenState extends State<ChatListScreen> {
         .from('messages')
         .select()
         .eq('chat_id', chatId);
-    final count = messages.length;
+    final count = messages.where((m) => m['sender'] != 'system').length;
 
     if (!context.mounted) return;
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            CircleAvatar(
-              radius: 32,
-              backgroundColor: _red,
-              child: Text(
-                (customer['name'] as String)[0].toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircleAvatar(
+                radius: 40,
+                backgroundColor: _red,
+                child: Text(
+                  (customer['name'] as String)[0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              customer['name'],
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              customer['phone'],
-              style: const TextStyle(fontSize: 15, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _red.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '$count message${count == 1 ? '' : 's'} in this chat',
+              const SizedBox(height: 16),
+              Text(
+                customer['name'],
                 style: const TextStyle(
-                  color: _red,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                customer['phone'],
+                style: const TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: _red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '$count message${count == 1 ? '' : 's'} in this chat',
+                  style: const TextStyle(
+                    color: _red,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

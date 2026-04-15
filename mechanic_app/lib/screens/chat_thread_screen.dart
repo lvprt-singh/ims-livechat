@@ -32,6 +32,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
   bool _sending = false;
+  String? _latestPageUrl;
 
   static const _red = Color(0xFFC81D24);
 
@@ -49,8 +50,21 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         .eq('chat_id', widget.chatId)
         .order('created_at', ascending: true);
 
+    final msgs = List<Map<String, dynamic>>.from(data);
+
+    // Find latest system message for sticky banner
+    final systemMsgs = msgs.where((m) => m['sender'] == 'system').toList();
+    String? latestPage;
+    if (systemMsgs.isNotEmpty) {
+      final content = systemMsgs.last['content'] as String? ?? '';
+      latestPage = content.replaceAll('📍 Customer returned from: ', '');
+    } else {
+      latestPage = widget.pageUrl;
+    }
+
     setState(() {
-      _messages = List<Map<String, dynamic>>.from(data);
+      _messages = msgs;
+      _latestPageUrl = latestPage;
       _loading = false;
     });
     _scrollToBottom();
@@ -69,8 +83,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             value: widget.chatId,
           ),
           callback: (payload) {
+            final newMsg = Map<String, dynamic>.from(payload.newRecord);
             setState(() {
-              _messages.add(Map<String, dynamic>.from(payload.newRecord));
+              _messages.add(newMsg);
+              if (newMsg['sender'] == 'system') {
+                final content = newMsg['content'] as String? ?? '';
+                _latestPageUrl = content.replaceAll(
+                  '📍 Customer returned from: ',
+                  '',
+                );
+              }
             });
             _scrollToBottom();
           },
@@ -155,8 +177,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     }
   }
 
-  Future<void> _openPage() async {
-    final uri = Uri.parse(widget.pageUrl);
+  Future<void> _openPage(String url) async {
+    final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -185,43 +207,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.customerName,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-              ),
-            ),
-            GestureDetector(
-              onTap: _openPage,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.open_in_new,
-                    size: 10,
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                  const SizedBox(width: 3),
-                  Expanded(
-                    child: Text(
-                      _extractPage(widget.pageUrl),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 11,
-                        decoration: TextDecoration.underline,
-                        decorationColor: Colors.white.withValues(alpha: 0.6),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        title: Text(
+          widget.customerName,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
         ),
         actions: [
           IconButton(
@@ -234,6 +226,54 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // Sticky latest page banner
+            if (_latestPageUrl != null && _latestPageUrl!.isNotEmpty)
+              GestureDetector(
+                onTap: () => _openPage(_latestPageUrl!),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: 14,
+                        color: _red.withValues(alpha: 0.8),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Currently viewing: ${_extractPage(_latestPageUrl!)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Icon(
+                        Icons.open_in_new,
+                        size: 12,
+                        color: Colors.grey[400],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: _red))
@@ -254,6 +294,34 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       itemBuilder: (context, index) {
                         final msg = _messages[index];
                         final isMe = msg['sender'] == 'mechanic';
+                        final isSystem = msg['sender'] == 'system';
+
+                        if (isSystem) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  msg['content'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
                         final showTime =
                             index == _messages.length - 1 ||
                             DateTime.parse(_messages[index + 1]['created_at'])
@@ -262,6 +330,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                     )
                                     .inMinutes >
                                 5;
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Column(

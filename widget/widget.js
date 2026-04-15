@@ -209,10 +209,24 @@ document.addEventListener("DOMContentLoaded", function () {
     initSession();
   });
 
-  function initSession() {
+  async function initSession() {
     const savedChatId = localStorage.getItem("ims_chat_id");
     const savedCustomerId = localStorage.getItem("ims_customer_id");
     if (savedChatId && savedCustomerId) {
+      // Verify the chat still exists
+      const { data, error } = await supabase
+        .from("chats")
+        .select("id")
+        .eq("id", savedChatId)
+        .single();
+      
+      if (error || !data) {
+        // Chat doesn't exist anymore, clear localStorage
+        localStorage.removeItem("ims_chat_id");
+        localStorage.removeItem("ims_customer_id");
+        return;
+      }
+      
       chatId = savedChatId;
       customerId = savedCustomerId;
       showChat();

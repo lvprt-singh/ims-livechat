@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ims.livechat"
+    namespace = "com.example.mechanic_app"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 

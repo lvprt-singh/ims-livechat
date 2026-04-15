@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
 
 class ChatThreadScreen extends StatefulWidget {
@@ -31,6 +32,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   List<Map<String, dynamic>> _messages = [];
   bool _loading = true;
   bool _sending = false;
+
+  static const _red = Color(0xFFC81D24);
 
   @override
   void initState() {
@@ -104,7 +107,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         .update({'last_message_at': DateTime.now().toIso8601String()})
         .eq('id', widget.chatId);
 
-    // Send SMS via Android gateway
     if (text != null && text.isNotEmpty) {
       await _sendSms(widget.customerPhone, text);
     }
@@ -114,17 +116,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
   Future<void> _sendSms(String phone, String message) async {
     try {
-      final response =
-          await HttpClient().postUrl(
-              Uri.parse('http://YOUR_GATEWAY_IP:8080/send'),
-            )
-            ..headers.contentType = ContentType(
-              'application',
-              'json',
-              charset: 'utf-8',
-            )
-            ..write('{"phone": "$phone", "message": "$message"}');
-      await response.close();
+      final request = await HttpClient().postUrl(
+        Uri.parse('http://YOUR_GATEWAY_IP:8080/send'),
+      );
+      request.headers.contentType = ContentType(
+        'application',
+        'json',
+        charset: 'utf-8',
+      );
+      request.write('{"phone": "$phone", "message": "$message"}');
+      await request.close();
     } catch (e) {
       debugPrint('SMS send failed: $e');
     }
@@ -147,6 +148,20 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     await _sendMessage(imageUrl: url);
   }
 
+  Future<void> _makeCall() async {
+    final uri = Uri.parse('tel:${widget.customerPhone}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Future<void> _openPage() async {
+    final uri = Uri.parse(widget.pageUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   String _formatTime(String iso) {
     final dt = DateTime.parse(iso).toLocal();
     return DateFormat('h:mm a').format(dt);
@@ -155,15 +170,17 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   String _extractPage(String url) {
     final uri = Uri.tryParse(url);
     if (uri == null) return url;
-    final path = uri.path.replaceAll('/', ' ').trim();
+    final path = uri.path.replaceAll('-', ' ').replaceAll('/', ' ').trim();
     return path.isEmpty ? 'Home page' : path;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF0F0F0),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFE8261D),
+        backgroundColor: _red,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -175,198 +192,281 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               widget.customerName,
               style: const TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
             ),
-            Text(
-              _extractPage(widget.pageUrl),
-              style: const TextStyle(color: Colors.white70, fontSize: 11),
-              overflow: TextOverflow.ellipsis,
+            GestureDetector(
+              onTap: _openPage,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.open_in_new,
+                    size: 10,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                  const SizedBox(width: 3),
+                  Expanded(
+                    child: Text(
+                      _extractPage(widget.pageUrl),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 11,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Colors.white.withValues(alpha: 0.6),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Icon(Icons.phone, color: Colors.white70, size: 14),
-                Text(
-                  widget.customerPhone,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11),
-                ),
-              ],
-            ),
+          IconButton(
+            icon: const Icon(Icons.call, color: Colors.white),
+            onPressed: _makeCall,
+            tooltip: widget.customerPhone,
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 16,
-                    ),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, index) {
-                      final msg = _messages[index];
-                      final isMe = msg['sender'] == 'mechanic';
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          mainAxisAlignment: isMe
-                              ? MainAxisAlignment.end
-                              : MainAxisAlignment.start,
-                          children: [
-                            Container(
-                              constraints: BoxConstraints(
-                                maxWidth:
-                                    MediaQuery.of(context).size.width * 0.72,
-                              ),
-                              padding: msg['image_url'] != null
-                                  ? EdgeInsets.zero
-                                  : const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
-                                    ),
-                              decoration: BoxDecoration(
-                                color: isMe
-                                    ? const Color(0xFFE8261D)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(18),
-                                  topRight: const Radius.circular(18),
-                                  bottomLeft: Radius.circular(isMe ? 18 : 4),
-                                  bottomRight: Radius.circular(isMe ? 4 : 18),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.08),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator(color: _red))
+                  : _messages.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No messages yet',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = _messages[index];
+                        final isMe = msg['sender'] == 'mechanic';
+                        final showTime =
+                            index == _messages.length - 1 ||
+                            DateTime.parse(_messages[index + 1]['created_at'])
+                                    .difference(
+                                      DateTime.parse(msg['created_at']),
+                                    )
+                                    .inMinutes >
+                                5;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment: isMe
+                                    ? MainAxisAlignment.end
+                                    : MainAxisAlignment.start,
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  if (msg['image_url'] != null)
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: CachedNetworkImage(
-                                        imageUrl: msg['image_url'],
-                                        width: 200,
-                                        fit: BoxFit.cover,
+                                  if (!isMe)
+                                    Container(
+                                      width: 28,
+                                      height: 28,
+                                      margin: const EdgeInsets.only(right: 6),
+                                      decoration: const BoxDecoration(
+                                        color: _red,
+                                        shape: BoxShape.circle,
                                       ),
-                                    )
-                                  else
-                                    Text(
-                                      msg['content'] ?? '',
-                                      style: TextStyle(
-                                        color: isMe
-                                            ? Colors.white
-                                            : Colors.black87,
-                                        fontSize: 15,
+                                      child: Center(
+                                        child: Text(
+                                          widget.customerName[0].toUpperCase(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _formatTime(msg['created_at']),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: isMe
-                                          ? Colors.white60
-                                          : Colors.black38,
+                                  Container(
+                                    constraints: BoxConstraints(
+                                      maxWidth:
+                                          MediaQuery.of(context).size.width *
+                                          0.70,
+                                    ),
+                                    padding: msg['image_url'] != null
+                                        ? EdgeInsets.zero
+                                        : const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 10,
+                                          ),
+                                    decoration: BoxDecoration(
+                                      color: isMe ? _red : Colors.white,
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: const Radius.circular(18),
+                                        topRight: const Radius.circular(18),
+                                        bottomLeft: Radius.circular(
+                                          isMe ? 18 : 4,
+                                        ),
+                                        bottomRight: Radius.circular(
+                                          isMe ? 4 : 18,
+                                        ),
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.06,
+                                          ),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        if (msg['image_url'] != null)
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            child: CachedNetworkImage(
+                                              imageUrl: msg['image_url'],
+                                              width: 200,
+                                              fit: BoxFit.cover,
+                                            ),
+                                          )
+                                        else
+                                          Text(
+                                            msg['content'] ?? '',
+                                            style: TextStyle(
+                                              color: isMe
+                                                  ? Colors.white
+                                                  : const Color(0xFF1A1A1A),
+                                              fontSize: 15,
+                                              height: 1.3,
+                                            ),
+                                          ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          _formatTime(msg['created_at']),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: isMe
+                                                ? Colors.white.withValues(
+                                                    alpha: 0.65,
+                                                  )
+                                                : Colors.grey[400],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+                              if (showTime && index < _messages.length - 1)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  child: Text(
+                                    DateFormat('h:mm a').format(
+                                      DateTime.parse(
+                                        _messages[index + 1]['created_at'],
+                                      ).toLocal(),
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[400],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.attach_file, color: Color(0xFFE8261D)),
-                  onPressed: _sending ? null : _pickAndSendImage,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    maxLines: null,
-                    decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFFF5F5F5),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.attach_file, color: _red),
+                    onPressed: _sending ? null : _pickAndSendImage,
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      maxLines: null,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: 'Type a message...',
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F5F5),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                _sending
-                    ? const SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(0xFFE8261D),
-                        ),
-                      )
-                    : GestureDetector(
-                        onTap: () async {
-                          final text = _messageController.text.trim();
-                          if (text.isEmpty) return;
-                          _messageController.clear();
-                          await _sendMessage(text: text);
-                        },
-                        child: Container(
+                  const SizedBox(width: 8),
+                  _sending
+                      ? const SizedBox(
                           width: 40,
                           height: 40,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE8261D),
-                            shape: BoxShape.circle,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _red,
                           ),
-                          child: const Icon(
-                            Icons.send,
-                            color: Colors.white,
-                            size: 18,
+                        )
+                      : GestureDetector(
+                          onTap: () async {
+                            final text = _messageController.text.trim();
+                            if (text.isEmpty) return;
+                            _messageController.clear();
+                            await _sendMessage(text: text);
+                          },
+                          child: Container(
+                            width: 42,
+                            height: 42,
+                            decoration: const BoxDecoration(
+                              color: _red,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.send,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                           ),
                         ),
-                      ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

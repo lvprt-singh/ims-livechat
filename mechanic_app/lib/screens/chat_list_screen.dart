@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'chat_thread_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -21,7 +22,52 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void initState() {
     super.initState();
     _loadChats();
-    _subscribeToChats();
+    _initFCM();
+    _subscribeToMessages();
+  }
+
+  void _subscribeToMessages() {
+    _supabase
+        .channel('realtime-messages')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'messages',
+          callback: (payload) async {
+            debugPrint('New message received, reloading chats');
+            await _loadChats();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'chats',
+          callback: (payload) async {
+            debugPrint('Chat updated, reloading');
+            await _loadChats();
+          },
+        )
+        .subscribe((status, [error]) {
+          debugPrint('Realtime status: $status, error: $error');
+        });
+  }
+
+  Future<void> _initFCM() async {
+    final messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission();
+    final token = await messaging.getToken();
+
+    if (token != null) {
+      debugPrint('FCM Token: $token');
+      await _supabase.from('fcm_tokens').upsert({
+        'token': token,
+      }, onConflict: 'token');
+    }
+
+    FirebaseMessaging.onMessage.listen((message) {
+      debugPrint('Foreground message: ${message.notification?.title}');
+      _loadChats();
+    });
   }
 
   Future<void> _loadChats() async {
@@ -37,24 +83,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
-  void _subscribeToChats() {
-    _supabase
-        .channel('chats-channel')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'chats',
-          callback: (payload) => _loadChats(),
-        )
-        .subscribe();
-  }
-
   String _formatTime(String iso) {
     final dt = DateTime.parse(iso).toLocal();
     final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inDays == 0) return DateFormat('h:mm a').format(dt);
-    if (diff.inDays == 1) return 'Yesterday';
+    final today = DateTime(now.year, now.month, now.day);
+    final msgDay = DateTime(dt.year, dt.month, dt.day);
+    final diff = today.difference(msgDay).inDays;
+
+    if (diff == 0) return DateFormat('h:mm a').format(dt);
+    if (diff == 1) return 'Yesterday';
+    if (diff < 7) return DateFormat('EEEE').format(dt);
     return DateFormat('d MMM').format(dt);
   }
 
@@ -291,9 +329,30 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                       ],
                     ),
-                    trailing: Text(
-                      _formatTime(chat['last_message_at']),
-                      style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _formatTime(chat['last_message_at']),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[400],
+                          ),
+                        ),
+                        if (chat['has_unread'] == true) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: _red,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     onTap: () {
                       Navigator.push(

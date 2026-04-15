@@ -200,6 +200,7 @@ document.addEventListener("DOMContentLoaded", function () {
   `);
 
   let supabase, chatId, customerId, channel;
+  let _sending = false;
   const pageUrl = window.location.href;
 
   // Load Supabase
@@ -337,20 +338,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.getElementById("ims-chat-send").onclick = async () => {
     const input = document.getElementById("ims-chat-input");
+    if (_sending) return;
+  _sending = true;
     const text = input.value.trim();
     if (!text) return;
     input.value = "";
     await sendMessage(text);
+    _sending = false;
   };
 
   document.getElementById("ims-chat-input").onkeydown = async (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (_sending) return;
+    _sending = true;
       const input = document.getElementById("ims-chat-input");
       const text = input.value.trim();
       if (!text) return;
-      input.value = "";
+      input.value = ""; 
       await sendMessage(text);
+      _sending = false;
     }
   };
 

@@ -40,7 +40,15 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   void initState() {
     super.initState();
     _loadMessages();
+    _markAsRead();
     _subscribeToMessages();
+  }
+
+  Future<void> _markAsRead() async {
+    await _supabase
+        .from('chats')
+        .update({'has_unread': false})
+        .eq('id', widget.chatId);
   }
 
   Future<void> _loadMessages() async {
@@ -97,7 +105,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             _scrollToBottom();
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          debugPrint('Thread realtime: $status error: $error');
+        });
   }
 
   void _scrollToBottom() {

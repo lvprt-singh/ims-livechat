@@ -245,18 +245,38 @@ document.addEventListener("DOMContentLoaded", function () {
     customerId = customer.id;
     localStorage.setItem("ims_customer_id", customerId);
 
-    // Create new chat
-    const { data: chat, error: chatErr } = await supabase
+    // Check for existing open chat
+    const { data: existingChats } = await supabase
       .from("chats")
-      .insert({ customer_id: customerId, page_url: pageUrl })
-      .select()
-      .single();
-    if (chatErr) return console.error(chatErr);
+      .select("id")
+      .eq("customer_id", customerId)
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    chatId = chat.id;
+    if (existingChats && existingChats.length > 0) {
+      chatId = existingChats[0].id;
+      // Log the page the customer returned from
+      await supabase.from("messages").insert({
+        chat_id: chatId,
+        sender: "customer",
+        content: `📍 Customer returned from: ${pageUrl}`,
+        source: "widget",
+      });
+    } else {
+      const { data: chat, error: chatErr } = await supabase
+        .from("chats")
+        .insert({ customer_id: customerId, page_url: pageUrl })
+        .select()
+        .single();
+      if (chatErr) return console.error(chatErr);
+      chatId = chat.id;
+    }
+
     localStorage.setItem("ims_chat_id", chatId);
 
     showChat();
+    loadMessages();
     subscribeToMessages();
   };
 

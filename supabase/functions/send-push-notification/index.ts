@@ -95,13 +95,14 @@ Deno.serve(async (req) => {
     const projectId = sa.project_id;
 
     const { data: chat } = await supabase
-      .from("chats")
-      .select("page_url, customers(name)")
-      .eq("id", record.chat_id)
-      .single();
+  .from("chats")
+  .select("page_url, customers(name, phone)")
+  .eq("id", record.chat_id)
+  .single();
 
-    const customerName = (chat?.customers as { name?: string })?.name ?? "Customer";
-    const messageText = record.content ?? "Sent an image";
+const customerName = (chat?.customers as { name?: string; phone?: string })?.name ?? "Customer";
+const customerPhone = (chat?.customers as { name?: string; phone?: string })?.phone ?? "";
+const messageText = record.content ?? "Sent an image";
 
     console.log(`Sending notification to ${tokens.length} devices for ${customerName}`);
 
@@ -115,21 +116,27 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            message: {
-              token,
-              notification: {
-                title: `New message from ${customerName}`,
-                body: messageText,
-              },
-              android: {
-  priority: "high",
-  notification: {
-    sound: "default",
-    channel_id: "ims_chat",
-  },
+  message: {
+    token,
+    notification: {
+      title: `New message from ${customerName}`,
+      body: messageText,
+    },
+    data: {
+  chat_id: record.chat_id,
+  customer_name: customerName,
+  customer_phone: customerPhone,
+  page_url: chat?.page_url ?? "",
 },
-            },
-          }),
+    android: {
+      priority: "high",
+      notification: {
+        sound: "default",
+        channel_id: "ims_chat",
+      },
+    },
+  },
+}),
         }
       );
 

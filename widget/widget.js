@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", function () {
       // Log the page the customer returned from
       await supabase.from("messages").insert({
         chat_id: chatId,
-        sender: "customer",
+        sender: "system",
         content: `📍 Customer returned from: ${pageUrl}`,
         source: "widget",
       });
@@ -310,6 +310,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderMessage(msg) {
+    if (msg.sender === "system") return;
     const div = document.createElement("div");
     div.className = `ims-msg ${msg.sender}`;
     if (msg.image_url) {

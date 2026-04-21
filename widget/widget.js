@@ -173,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Build widget HTML
   document.body.insertAdjacentHTML("beforeend", `
-    <button id="ims-chat-btn">💬 ${pageUrl === 'https://www.independentmotorsports.com.au/' ? "Let's Talk" : 'Ask About This'}</button>
+    <button id="ims-chat-btn">💬 Let's Talk</button>
     <div id="ims-chat-panel">
       <div id="ims-chat-header">
         <div>
@@ -202,6 +202,10 @@ document.addEventListener("DOMContentLoaded", function () {
   let supabase, chatId, customerId, channel;
   let _sending = false;
   const pageUrl = window.location.href;
+  const chatBtn = document.getElementById("ims-chat-btn");
+if (chatBtn) {
+  chatBtn.innerHTML = pageUrl === 'https://www.independentmotorsports.com.au/' ? "💬 Let's Talk" : "💬 Ask About This";
+}
 
   // Load Supabase
   loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js", () => {

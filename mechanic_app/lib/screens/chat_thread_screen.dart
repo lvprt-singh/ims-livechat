@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
+import 'dart:convert';
 
 class ChatThreadScreen extends StatefulWidget {
   final String chatId;
@@ -148,16 +149,33 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
   Future<void> _sendSms(String phone, String message) async {
     try {
-      final request = await HttpClient().postUrl(
-        Uri.parse('http://YOUR_GATEWAY_IP:8080/send'),
+      // Convert Australian number to international format
+      String formattedPhone = phone.trim();
+      if (formattedPhone.startsWith('04')) {
+        formattedPhone = '+61${formattedPhone.substring(1)}';
+      } else if (formattedPhone.startsWith('0')) {
+        formattedPhone = '+61${formattedPhone.substring(1)}';
+      }
+
+      final credentials = base64Encode(utf8.encode('25QAM_:5zerpmlzljmnlr'));
+      final response = await HttpClient().postUrl(
+        Uri.parse('https://api.sms-gate.app/3rdparty/v1/message'),
       );
-      request.headers.contentType = ContentType(
+      response.headers.set('Authorization', 'Basic $credentials');
+      response.headers.contentType = ContentType(
         'application',
         'json',
         charset: 'utf-8',
       );
-      request.write('{"phone": "$phone", "message": "$message"}');
-      await request.close();
+      response.write(
+        jsonEncode({
+          "message": message,
+          "phoneNumbers": [formattedPhone],
+          "deviceId": "jGPZsSEMigpxOf7_yAetR",
+        }),
+      );
+      final result = await response.close();
+      debugPrint('SMS result: ${result.statusCode}');
     } catch (e) {
       debugPrint('SMS send failed: $e');
     }

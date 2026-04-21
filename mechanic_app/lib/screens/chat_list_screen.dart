@@ -73,7 +73,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Future<void> _loadChats() async {
     final data = await _supabase
         .from('chats')
-        .select('*, customers(name, phone)')
+        .select(
+          '*, customers(name, phone), messages(content, sender, created_at)',
+        )
         .eq('status', 'open')
         .order('last_message_at', ascending: false);
 
@@ -251,7 +253,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
           : ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: _chats.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 1),
+              separatorBuilder: (_, _) => const SizedBox(height: 1),
               itemBuilder: (context, index) {
                 final chat = _chats[index];
                 final customer = chat['customers'];
@@ -310,22 +312,37 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.phone,
-                              size: 12,
-                              color: Colors.grey[500],
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              customer['phone'],
+                        Builder(
+                          builder: (_) {
+                            final msgs = (chat['messages'] as List?)
+                                ?.where((m) => m['sender'] != 'system')
+                                .toList();
+                            msgs?.sort(
+                              (a, b) => DateTime.parse(
+                                b['created_at'],
+                              ).compareTo(DateTime.parse(a['created_at'])),
+                            );
+                            final latest = msgs?.isNotEmpty == true
+                                ? msgs!.first
+                                : null;
+                            final preview = latest?['content'] as String?;
+                            final isMe = latest?['sender'] == 'mechanic';
+                            if (preview == null) return const SizedBox.shrink();
+                            return Text(
+                              isMe ? 'You: $preview' : preview,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[500],
+                                color: chat['has_unread'] == true && !isMe
+                                    ? const Color(0xFF1A1A1A)
+                                    : Colors.grey[500],
+                                fontWeight: chat['has_unread'] == true && !isMe
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
-                            ),
-                          ],
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            );
+                          },
                         ),
                       ],
                     ),

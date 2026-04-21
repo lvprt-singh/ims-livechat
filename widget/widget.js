@@ -173,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Build widget HTML
   document.body.insertAdjacentHTML("beforeend", `
-    <button id="ims-chat-btn">💬 Let's Talk</button>
+    <button id="ims-chat-btn">💬 ${pageUrl === 'https://www.independentmotorsports.com.au/' ? "Let's Talk" : 'Ask About This'}</button>
     <div id="ims-chat-panel">
       <div id="ims-chat-header">
         <div>

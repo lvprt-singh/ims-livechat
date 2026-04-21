@@ -22,8 +22,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void initState() {
     super.initState();
     _loadChats();
+    _pollChats();
     _initFCM();
     _subscribeToMessages();
+  }
+
+  void _pollChats() async {
+    if (!mounted) return;
+    await _loadChats();
+    Future.delayed(const Duration(seconds: 30), _pollChats);
   }
 
   void _subscribeToMessages() {

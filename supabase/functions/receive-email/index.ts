@@ -200,12 +200,12 @@ function stripQuotedReply(text: string): string {
   if (!text) return "";
 
   const patterns = [
-    /^On .+wrote:/m,
-    /^-{3,}\s*Original Message\s*-{3,}/im,
-    /^From:\s.+\nSent:\s.+\nTo:\s/im,
-    /^_{5,}/m,
-    /^-{3,}\s*Forwarded message\s*-{3,}/im,
-  ];
+  /^On [\s\S]+?wrote:/m,                     // Gmail (handles line-wrapped attribution)
+  /^-{3,}\s*Original Message\s*-{3,}/im,     // Outlook
+  /^From:\s.+\nSent:\s.+\nTo:\s/im,          // Outlook variant
+  /^_{5,}/m,                                 // Underscore divider
+  /^-{3,}\s*Forwarded message\s*-{3,}/im,    // Forwards
+];
 
   let earliestIdx = text.length;
   for (const p of patterns) {

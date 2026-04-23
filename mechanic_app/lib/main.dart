@@ -21,7 +21,7 @@ void _handleNotificationTap(RemoteMessage message) {
         builder: (_) => ChatThreadScreen(
           chatId: data['chat_id'],
           customerName: data['customer_name'] ?? 'Customer',
-          customerPhone: data['customer_phone'] ?? '',
+          customerEmail: data['customer_email'] ?? '',
           pageUrl: data['page_url'] ?? '',
         ),
       ),
@@ -47,7 +47,6 @@ void main() async {
       _handleNotificationTap(initialMessage);
     });
   }
-  // Handle notification tap when app is in background
   FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
   runApp(const IMSChatApp());

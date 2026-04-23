@@ -5,19 +5,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
-import 'dart:convert';
 
 class ChatThreadScreen extends StatefulWidget {
   final String chatId;
   final String customerName;
-  final String customerPhone;
+  final String customerEmail;
   final String pageUrl;
 
   const ChatThreadScreen({
     super.key,
     required this.chatId,
     required this.customerName,
-    required this.customerPhone,
+    required this.customerEmail,
     required this.pageUrl,
   });
 
@@ -67,7 +66,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 radius: 40,
                 backgroundColor: _red,
                 child: Text(
-                  widget.customerName[0].toUpperCase(),
+                  widget.customerName.isNotEmpty
+                      ? widget.customerName[0].toUpperCase()
+                      : '?',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 32,
@@ -86,8 +87,11 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                widget.customerPhone,
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                widget.customerEmail.isNotEmpty
+                    ? widget.customerEmail
+                    : 'No email',
+                style: const TextStyle(fontSize: 15, color: Colors.grey),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Container(
@@ -142,7 +146,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
     final msgs = List<Map<String, dynamic>>.from(data);
 
-    // Find latest system message for sticky banner
     final systemMsgs = msgs.where((m) => m['sender'] == 'system').toList();
     String? latestPage;
     if (systemMsgs.isNotEmpty) {
@@ -204,6 +207,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     });
   }
 
+  // Mechanic-side send. Just writes to DB — the backend's inactivity cron
+  // handles emailing the customer when they've been away >5 min.
   Future<void> _sendMessage({String? text, String? imageUrl}) async {
     if ((text == null || text.isEmpty) && imageUrl == null) return;
     setState(() => _sending = true);
@@ -213,53 +218,15 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       'sender': 'mechanic',
       'content': text,
       'image_url': imageUrl,
-      'source': 'widget',
+      'source': 'dashboard',
     });
 
     await _supabase
         .from('chats')
-        .update({'last_message_at': DateTime.now().toIso8601String()})
+        .update({'last_message_at': DateTime.now().toUtc().toIso8601String()})
         .eq('id', widget.chatId);
 
-    if (text != null && text.isNotEmpty) {
-      await _sendSms(widget.customerPhone, text);
-    }
-
     setState(() => _sending = false);
-  }
-
-  Future<void> _sendSms(String phone, String message) async {
-    try {
-      // Convert Australian number to international format
-      String formattedPhone = phone.trim();
-      if (formattedPhone.startsWith('04')) {
-        formattedPhone = '+61${formattedPhone.substring(1)}';
-      } else if (formattedPhone.startsWith('0')) {
-        formattedPhone = '+61${formattedPhone.substring(1)}';
-      }
-
-      final credentials = base64Encode(utf8.encode('25QAM_:5zerpmlzljmnlr'));
-      final response = await HttpClient().postUrl(
-        Uri.parse('https://api.sms-gate.app/3rdparty/v1/message'),
-      );
-      response.headers.set('Authorization', 'Basic $credentials');
-      response.headers.contentType = ContentType(
-        'application',
-        'json',
-        charset: 'utf-8',
-      );
-      response.write(
-        jsonEncode({
-          "message": message,
-          "phoneNumbers": [formattedPhone],
-          "deviceId": "jGPZsSEMigpxOf7_yAetR",
-        }),
-      );
-      final result = await response.close();
-      debugPrint('SMS result: ${result.statusCode}');
-    } catch (e) {
-      debugPrint('SMS send failed: $e');
-    }
   }
 
   Future<void> _pickAndSendImage() async {
@@ -279,8 +246,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     await _sendMessage(imageUrl: url);
   }
 
-  Future<void> _makeCall() async {
-    final uri = Uri.parse('tel:${widget.customerPhone}');
+  // Opens default mail app with a new email pre-addressed to the customer.
+  Future<void> _composeEmail() async {
+    if (widget.customerEmail.isEmpty) return;
+    final uri = Uri(scheme: 'mailto', path: widget.customerEmail);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     }
@@ -328,17 +297,17 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.call, color: Colors.white),
-            onPressed: _makeCall,
-            tooltip: widget.customerPhone,
-          ),
+          if (widget.customerEmail.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.email_outlined, color: Colors.white),
+              onPressed: _composeEmail,
+              tooltip: widget.customerEmail,
+            ),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Sticky latest page banner
             if (_latestPageUrl != null && _latestPageUrl!.isNotEmpty)
               GestureDetector(
                 onTap: () => _openPage(_latestPageUrl!),
@@ -443,6 +412,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                     .inMinutes >
                                 5;
 
+                        // Hint that this message was delivered via email
+                        final viaEmail = !isMe && msg['source'] == 'email';
+
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Column(
@@ -464,7 +436,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                       ),
                                       child: Center(
                                         child: Text(
-                                          widget.customerName[0].toUpperCase(),
+                                          widget.customerName.isNotEmpty
+                                              ? widget.customerName[0]
+                                                    .toUpperCase()
+                                              : '?',
                                           style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 12,
@@ -534,16 +509,29 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                                             ),
                                           ),
                                         const SizedBox(height: 3),
-                                        Text(
-                                          _formatTime(msg['created_at']),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: isMe
-                                                ? Colors.white.withValues(
-                                                    alpha: 0.65,
-                                                  )
-                                                : Colors.grey[400],
-                                          ),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (viaEmail) ...[
+                                              Icon(
+                                                Icons.email,
+                                                size: 10,
+                                                color: Colors.grey[400],
+                                              ),
+                                              const SizedBox(width: 3),
+                                            ],
+                                            Text(
+                                              _formatTime(msg['created_at']),
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: isMe
+                                                    ? Colors.white.withValues(
+                                                        alpha: 0.65,
+                                                      )
+                                                    : Colors.grey[400],
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),

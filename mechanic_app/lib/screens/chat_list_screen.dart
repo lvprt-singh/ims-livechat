@@ -81,7 +81,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     final data = await _supabase
         .from('chats')
         .select(
-          '*, customers(name, phone), messages(content, sender, created_at)',
+          '*, customers(name, email), messages(content, sender, created_at)',
         )
         .eq('status', 'open')
         .order('last_message_at', ascending: false);
@@ -149,7 +149,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                customer['name'],
+                customer['name'] ?? 'Unknown',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -158,8 +158,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                customer['phone'],
-                style: const TextStyle(fontSize: 16, color: Colors.grey),
+                customer['email'] ?? 'No email',
+                style: const TextStyle(fontSize: 15, color: Colors.grey),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Container(
@@ -265,6 +266,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 final chat = _chats[index];
                 final customer = chat['customers'];
                 final page = _extractPage(chat['page_url']);
+                final customerName = (customer['name'] as String?) ?? 'Unknown';
+                final initial = customerName.isNotEmpty
+                    ? customerName[0].toUpperCase()
+                    : '?';
                 return Container(
                   color: Colors.white,
                   child: ListTile(
@@ -279,7 +284,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         radius: 24,
                         backgroundColor: _red,
                         child: Text(
-                          (customer['name'] as String)[0].toUpperCase(),
+                          initial,
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -291,7 +296,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     title: Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(
-                        customer['name'],
+                        customerName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,
@@ -384,8 +389,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         MaterialPageRoute(
                           builder: (_) => ChatThreadScreen(
                             chatId: chat['id'],
-                            customerName: customer['name'],
-                            customerPhone: customer['phone'],
+                            customerName: customerName,
+                            customerEmail: (customer['email'] as String?) ?? '',
                             pageUrl: chat['page_url'] ?? '',
                           ),
                         ),

@@ -3,3 +3,4 @@
     "default": "ims-livechat"
   }
 }
+git check-ignore -v android\key.properties

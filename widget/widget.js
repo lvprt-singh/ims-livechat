@@ -428,7 +428,7 @@ function renderQuoteCard(msg) {
     <a href="${url}" target="_blank" rel="noopener" class="ims-quote-link">
       <div class="ims-quote-icon">📄</div>
       <div class="ims-quote-body">
-        <div class="ims-quote-title">Quote sent</div>
+        <div class="ims-quote-title">Quote received</div>
         <div class="ims-quote-meta">${quoteNum} · ${total}</div>
         <div class="ims-quote-cta">Tap to view PDF</div>
       </div>

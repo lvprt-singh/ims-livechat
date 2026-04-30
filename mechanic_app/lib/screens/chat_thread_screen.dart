@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:gal/gal.dart';
 import 'dart:io';
+import 'quote_form_screen.dart';
 
 class ChatThreadScreen extends StatefulWidget {
   final String chatId;
@@ -39,6 +40,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   bool _sending = false;
   String? _latestPageUrl;
   String? _assignedTo;
+  String? _emailToken;
   RealtimeChannel? _channel;
 
   static const _red = Color(0xFFC81D24);
@@ -66,11 +68,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   Future<void> _loadChat() async {
     final data = await _supabase
         .from('chats')
-        .select('assigned_to')
+        .select('assigned_to, email_token')
         .eq('id', widget.chatId)
         .maybeSingle();
     if (!mounted || data == null) return;
-    setState(() => _assignedTo = data['assigned_to'] as String?);
+    setState(() {
+      _assignedTo = data['assigned_to'] as String?;
+      _emailToken = data['email_token'] as String?;
+    });
   }
 
   Future<void> _assign(String? who) async {
@@ -89,6 +94,15 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         .eq('id', widget.chatId);
   }
 
+  Future<void> _markUnread() async {
+    await _supabase
+        .from('chats')
+        .update({'has_unread': true})
+        .eq('id', widget.chatId);
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
   Future<void> _loadMessages() async {
     final data = await _supabase
         .from('messages')
@@ -96,10 +110,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         .eq('chat_id', widget.chatId)
         .order('created_at', ascending: true);
     final msgs = List<Map<String, dynamic>>.from(data);
-    final systemMsgs = msgs.where((m) => m['sender'] == 'system').toList();
+    final pageMsgs = msgs.where(
+      (m) =>
+          m['sender'] == 'system' &&
+          (m['content'] as String? ?? '').contains('Customer returned from'),
+    );
     String? latestPage;
-    if (systemMsgs.isNotEmpty) {
-      latestPage = (systemMsgs.last['content'] as String? ?? '').replaceAll(
+    if (pageMsgs.isNotEmpty) {
+      latestPage = (pageMsgs.last['content'] as String? ?? '').replaceAll(
         '📍 Customer returned from: ',
         '',
       );
@@ -132,9 +150,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             if (!mounted) return;
             setState(() {
               _messages.add(newMsg);
-              if (newMsg['sender'] == 'system') {
-                _latestPageUrl = (newMsg['content'] as String? ?? '')
-                    .replaceAll('📍 Customer returned from: ', '');
+              final c = newMsg['content'] as String? ?? '';
+              if (newMsg['sender'] == 'system' &&
+                  c.contains('Customer returned from')) {
+                _latestPageUrl = c.replaceAll(
+                  '📍 Customer returned from: ',
+                  '',
+                );
               }
             });
             _scrollToBottom();
@@ -204,19 +226,30 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     await _sendMessage(imageUrl: url);
   }
 
-  Future<void> _composeEmail() async {
-    if (widget.customerEmail.isEmpty) return;
-    final uri = Uri(scheme: 'mailto', path: widget.customerEmail);
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  void _openQuoteForm() {
+    if (_emailToken == null) {
+      _toast('Loading chat... try again');
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuoteFormScreen(
+          chatId: widget.chatId,
+          customerName: widget.customerName,
+          customerEmail: widget.customerEmail,
+          chatEmailToken: _emailToken!,
+        ),
+      ),
+    );
   }
 
-  Future<void> _openPage(String url) async {
+  Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri))
       await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  // Download image to temp file for sharing/saving
   Future<File?> _downloadImage(String url) async {
     try {
       final res = await http.get(Uri.parse(url));
@@ -258,7 +291,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       }
       await Gal.putImage(file.path, album: 'IMS');
       _toast('Saved to Photos');
-    } catch (e) {
+    } catch (_) {
       _toast('Save failed');
     }
   }
@@ -424,12 +457,19 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           ),
         ),
         actions: [
-          if (widget.customerEmail.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.email_outlined, color: Colors.white),
-              onPressed: _composeEmail,
-              tooltip: widget.customerEmail,
+          IconButton(
+            icon: const Icon(
+              Icons.mark_email_unread_outlined,
+              color: Colors.white,
             ),
+            tooltip: 'Mark as unread',
+            onPressed: _markUnread,
+          ),
+          IconButton(
+            icon: const Icon(Icons.request_quote_outlined, color: Colors.white),
+            tooltip: 'Send quote',
+            onPressed: _openQuoteForm,
+          ),
         ],
       ),
       body: SafeArea(
@@ -459,7 +499,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
   Widget _pageBanner() {
     return GestureDetector(
-      onTap: () => _openPage(_latestPageUrl!),
+      onTap: () => _openUrl(_latestPageUrl!),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -506,10 +546,14 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       itemCount: _messages.length,
       itemBuilder: (context, index) {
         final msg = _messages[index];
-        final isMe = msg['sender'] == 'mechanic';
-        final isSystem = msg['sender'] == 'system';
+        final sender = msg['sender'] as String?;
+        final content = msg['content'] as String? ?? '';
 
-        if (isSystem) {
+        if (sender == 'system' && content.contains('QUOTE_SENT|')) {
+          return _quoteCard(content, msg['created_at']);
+        }
+
+        if (sender == 'system') {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Center(
@@ -523,7 +567,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  msg['content'] ?? '',
+                  content,
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
@@ -532,6 +576,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           );
         }
 
+        final isMe = sender == 'mechanic';
         final viaEmail = !isMe && msg['source'] == 'email';
         final imageUrl = msg['image_url'] as String?;
 
@@ -626,7 +671,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       )
                     else
                       Text(
-                        msg['content'] ?? '',
+                        content,
                         style: TextStyle(
                           color: isMe ? Colors.white : const Color(0xFF1A1A1A),
                           fontSize: 15,
@@ -669,6 +714,84 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _quoteCard(String content, String createdAt) {
+    final parts = content.replaceFirst('📄 QUOTE_SENT|', '').split('|');
+    final quoteNum = parts.isNotEmpty ? parts[0] : '';
+    final url = parts.length > 1 ? parts[1] : '';
+    final total = parts.length > 2 ? parts[2] : '';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: GestureDetector(
+          onTap: () => _openUrl(url),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85,
+            ),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _red.withValues(alpha: 0.25), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.picture_as_pdf,
+                    color: _red,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Quote sent',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$quoteNum  ·  $total',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatTime(createdAt),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey[400]),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -802,7 +925,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   }
 }
 
-// Fullscreen image viewer with pinch-zoom
 class _ImageViewer extends StatelessWidget {
   final String url;
   final VoidCallback onShare;

@@ -168,6 +168,39 @@ document.addEventListener("DOMContentLoaded", function () {
       display: none;
       background: #f5f5f5;
     }
+      .ims-quote-card {
+  align-self: center;
+  width: 92%;
+  margin: 4px 0;
+}
+.ims-quote-link {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: white;
+  border: 1px solid rgba(232, 38, 29, 0.25);
+  border-radius: 12px;
+  padding: 12px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ims-quote-link:hover {
+  border-color: rgba(232, 38, 29, 0.5);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.ims-quote-icon {
+  width: 40px; height: 40px;
+  background: rgba(232, 38, 29, 0.1);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.ims-quote-body { flex: 1; min-width: 0; }
+.ims-quote-title { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+.ims-quote-meta { font-size: 12px; color: #666; margin-top: 2px; }
+.ims-quote-cta { font-size: 11px; color: #e8261d; font-weight: 600; margin-top: 4px; }
   `;
   document.head.appendChild(style);
 
@@ -366,17 +399,44 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderMessage(msg) {
-    if (msg.sender === "system") return;
-    const div = document.createElement("div");
-    div.className = `ims-msg ${msg.sender}`;
-    if (msg.image_url) {
-      div.innerHTML = `<img src="${msg.image_url}" alt="image" />`;
-    } else {
-      div.textContent = msg.content;
+  if (msg.sender === "system") {
+    if (msg.content && msg.content.includes("QUOTE_SENT|")) {
+      renderQuoteCard(msg);
     }
-    document.getElementById("ims-chat-messages").appendChild(div);
-    document.getElementById("ims-chat-messages").scrollTop = 99999;
+    return;
   }
+  const div = document.createElement("div");
+  div.className = `ims-msg ${msg.sender}`;
+  if (msg.image_url) {
+    div.innerHTML = `<img src="${msg.image_url}" alt="image" />`;
+  } else {
+    div.textContent = msg.content;
+  }
+  document.getElementById("ims-chat-messages").appendChild(div);
+  document.getElementById("ims-chat-messages").scrollTop = 99999;
+}
+
+function renderQuoteCard(msg) {
+  const parts = (msg.content || "").replace("📄 QUOTE_SENT|", "").split("|");
+  const quoteNum = parts[0] || "";
+  const url = parts[1] || "";
+  const total = parts[2] || "";
+
+  const wrap = document.createElement("div");
+  wrap.className = "ims-quote-card";
+  wrap.innerHTML = `
+    <a href="${url}" target="_blank" rel="noopener" class="ims-quote-link">
+      <div class="ims-quote-icon">📄</div>
+      <div class="ims-quote-body">
+        <div class="ims-quote-title">Quote sent</div>
+        <div class="ims-quote-meta">${quoteNum} · ${total}</div>
+        <div class="ims-quote-cta">Tap to view PDF</div>
+      </div>
+    </a>
+  `;
+  document.getElementById("ims-chat-messages").appendChild(wrap);
+  document.getElementById("ims-chat-messages").scrollTop = 99999;
+}
 
   // Send message
   async function sendMessage(content, imageUrl = null) {

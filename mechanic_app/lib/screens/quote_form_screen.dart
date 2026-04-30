@@ -48,6 +48,7 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
   static const _bg = Color(0xFFF7F7F8);
 
   late final TextEditingController _customerName;
+  final _title = TextEditingController();
   final _rego = TextEditingController();
   final _carType = TextEditingController();
   final _transmission = TextEditingController();
@@ -61,6 +62,7 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
     _customerName = TextEditingController(text: widget.customerName);
     _customerName.addListener(_recalc);
     _quoteBy.addListener(_recalc);
+    _title.addListener(_recalc);
     for (final item in _items) {
       item.product.addListener(_recalc);
       item.qty.addListener(_recalc);
@@ -70,6 +72,7 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
 
   @override
   void dispose() {
+    _title.dispose();
     _customerName.dispose();
     _rego.dispose();
     _carType.dispose();
@@ -103,6 +106,7 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
 
   bool get _canPreview {
     if (_customerName.text.trim().isEmpty) return false;
+    if (_title.text.trim().isEmpty) return false;
     if (_quoteBy.text.trim().isEmpty) return false;
     return _items.any(
       (i) => i.product.text.trim().isNotEmpty && i.priceValue > 0,
@@ -123,6 +127,7 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
           chatEmailToken: widget.chatEmailToken,
           data: {
             'customer_name': _customerName.text.trim(),
+            'title': _title.text.trim(),
             'rego': _rego.text.trim(),
             'car_type': _carType.text.trim(),
             'transmission': _transmission.text.trim(),
@@ -159,6 +164,10 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  _section('Quote', [
+                    _textField(_title, 'Quote title (e.g. Brake replacement)'),
+                  ]),
+                  const SizedBox(height: 16),
                   _section('Customer', [
                     _textField(_customerName, 'Customer name'),
                     _textField(

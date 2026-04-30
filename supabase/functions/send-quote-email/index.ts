@@ -19,6 +19,7 @@ Deno.serve(async (req) => {
       chat_email_token,
       quote_number,
       customer_name,
+      title,
       quote_by,
       total,
       pdf_base64,
@@ -59,8 +60,7 @@ if (!chat_id || !customer_email || !pdf_base64) {
 
     // 3. Email the customer with PDF attached
     const replyTo = `chat+${chat_email_token}@${CHAT_DOMAIN}`;
-    const subject = `Your quote from Independent Motorsports [${chat_email_token}]`;
-
+    const subject = `${title || 'Quote'} from Independent Motorsports [${chat_email_token}]`;
     const emailBody = [
       `Hi ${customer_name || "there"},`,
       "",
@@ -107,7 +107,7 @@ if (!chat_id || !customer_email || !pdf_base64) {
     }
 
     // 4. Insert a system message in chat with quote URL
-    const messageContent = `📄 QUOTE_SENT|${quote_number}|${pdfUrl}|$${Number(total).toFixed(2)}`;
+    const messageContent = `📄 QUOTE_SENT|${quote_number}|${pdfUrl}|$${Number(total).toFixed(2)}|${title || ''}`;
     await supabase.from("messages").insert({
       chat_id,
       sender: "system",

@@ -722,6 +722,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final quoteNum = parts.isNotEmpty ? parts[0] : '';
     final url = parts.length > 1 ? parts[1] : '';
     final total = parts.length > 2 ? parts[2] : '';
+    final title = parts.length > 3 ? parts[3] : '';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -775,7 +776,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '$quoteNum  ·  $total',
+                        title.isNotEmpty
+                            ? '$title · $quoteNum · $total'
+                            : '$quoteNum · $total',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 2),

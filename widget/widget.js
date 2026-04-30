@@ -421,6 +421,7 @@ function renderQuoteCard(msg) {
   const quoteNum = parts[0] || "";
   const url = parts[1] || "";
   const total = parts[2] || "";
+  const title = parts[3] || "";
 
   const wrap = document.createElement("div");
   wrap.className = "ims-quote-card";
@@ -429,7 +430,7 @@ function renderQuoteCard(msg) {
       <div class="ims-quote-icon">📄</div>
       <div class="ims-quote-body">
         <div class="ims-quote-title">Quote received</div>
-        <div class="ims-quote-meta">${quoteNum} · ${total}</div>
+        <div class="ims-quote-meta">${title ? title + " · " : ""}${quoteNum} · ${total}</div>
         <div class="ims-quote-cta">Tap to view PDF</div>
       </div>
     </a>

@@ -92,18 +92,19 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        'QUOTE',
+                        widget.data['title'] ?? 'QUOTE',
                         style: pw.TextStyle(
-                          fontSize: 22,
+                          fontSize: 18,
                           fontWeight: pw.FontWeight.bold,
                           color: _red,
                         ),
+                        textAlign: pw.TextAlign.right,
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        '#$_quoteNumber',
+                        'Quote #$_quoteNumber',
                         style: const pw.TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: PdfColors.grey700,
                         ),
                       ),
@@ -386,6 +387,7 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
           'customer_email': widget.customerEmail,
           'chat_email_token': widget.chatEmailToken,
           'quote_number': _quoteNumber,
+          'title': widget.data['title'],
           'customer_name': widget.data['customer_name'],
           'quote_by': widget.data['quote_by'],
           'total': widget.data['total'],

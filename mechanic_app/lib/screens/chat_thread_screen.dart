@@ -226,22 +226,87 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     await _sendMessage(imageUrl: url);
   }
 
-  void _openQuoteForm() {
+  Future<void> _requestQuoteForm() async {
     if (_emailToken == null) {
       _toast('Loading chat... try again');
       return;
     }
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => QuoteFormScreen(
-          chatId: widget.chatId,
-          customerName: widget.customerName,
-          customerEmail: widget.customerEmail,
-          chatEmailToken: _emailToken!,
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Send quote form?'),
+        content: Text(
+          'A form link will be sent to ${widget.customerEmail} so they can fill in their vehicle details and describe the work needed.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Send'),
+          ),
+        ],
       ),
     );
+    if (confirm != true) return;
+
+    try {
+      final res = await _supabase.functions.invoke(
+        'request-quote-form',
+        body: {
+          'chat_id': widget.chatId,
+          'customer_email': widget.customerEmail,
+          'chat_email_token': _emailToken,
+        },
+      );
+      if (!mounted) return;
+      if (res.status == 200) {
+        _toast('Form link sent to customer');
+      } else {
+        _toast('Failed: ${res.data}');
+      }
+    } catch (e) {
+      _toast('Error: $e');
+    }
+  }
+
+  Future<void> _openSubmittedDraft(String token) async {
+    try {
+      final res = await _supabase.functions.invoke(
+        'get-quote-draft',
+        body: {'token': token},
+      );
+      if (!mounted) return;
+      if (res.status != 200) {
+        _toast('Couldn\'t load draft');
+        return;
+      }
+      final data = res.data as Map<String, dynamic>;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => QuoteFormScreen(
+            chatId: widget.chatId,
+            customerName: data['customer_name'] ?? widget.customerName,
+            customerEmail: widget.customerEmail,
+            chatEmailToken: _emailToken!,
+            prefilledTitle: data['title'] as String?,
+            prefilledRego: data['rego'] as String?,
+            prefilledCarType: data['car_type'] as String?,
+            prefilledTransmission: data['transmission'] as String?,
+            workDescription: data['work_description'] as String?,
+          ),
+        ),
+      );
+    } catch (e) {
+      _toast('Error: $e');
+    }
   }
 
   Future<void> _openUrl(String url) async {
@@ -467,8 +532,8 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.request_quote_outlined, color: Colors.white),
-            tooltip: 'Send quote',
-            onPressed: _openQuoteForm,
+            tooltip: 'Request quote details',
+            onPressed: _requestQuoteForm,
           ),
         ],
       ),
@@ -551,6 +616,13 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
 
         if (sender == 'system' && content.contains('QUOTE_SENT|')) {
           return _quoteCard(content, msg['created_at']);
+        }
+        if (sender == 'system' && content.contains('QUOTE_REQUEST_SENT|')) {
+          return _quoteRequestCard(content, msg['created_at']);
+        }
+        if (sender == 'customer' &&
+            content.contains('QUOTE_DRAFT_SUBMITTED|')) {
+          return _quoteDraftCard(content, msg['created_at']);
         }
 
         if (sender == 'system') {
@@ -785,6 +857,126 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       Text(
                         _formatTime(createdAt),
                         style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey[400]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _quoteRequestCard(String content, String createdAt) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.send_outlined, size: 14, color: Colors.blue),
+              const SizedBox(width: 6),
+              Text(
+                'Quote form sent · ${_formatTime(createdAt)}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.blue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _quoteDraftCard(String content, String createdAt) {
+    final parts = content
+        .replaceFirst('📋 QUOTE_DRAFT_SUBMITTED|', '')
+        .split('|');
+    final token = parts.isNotEmpty ? parts[0] : '';
+    final title = parts.length > 1 ? parts[1] : '';
+    final name = parts.length > 2 ? parts[2] : '';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: GestureDetector(
+          onTap: () => _openSubmittedDraft(token),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85,
+            ),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: const Color(0xFF059669).withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF059669).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.assignment_turned_in,
+                    color: Color(0xFF059669),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Customer submitted details',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        title.isNotEmpty ? '$title · $name' : name,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tap to build quote · ${_formatTime(createdAt)}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF059669),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),

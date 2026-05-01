@@ -30,6 +30,11 @@ class QuoteFormScreen extends StatefulWidget {
   final String customerName;
   final String customerEmail;
   final String chatEmailToken;
+  final String? prefilledTitle;
+  final String? prefilledRego;
+  final String? prefilledCarType;
+  final String? prefilledTransmission;
+  final String? workDescription;
 
   const QuoteFormScreen({
     super.key,
@@ -37,6 +42,11 @@ class QuoteFormScreen extends StatefulWidget {
     required this.customerName,
     required this.customerEmail,
     required this.chatEmailToken,
+    this.prefilledTitle,
+    this.prefilledRego,
+    this.prefilledCarType,
+    this.prefilledTransmission,
+    this.workDescription,
   });
 
   @override
@@ -45,10 +55,11 @@ class QuoteFormScreen extends StatefulWidget {
 
 class _QuoteFormScreenState extends State<QuoteFormScreen> {
   static const _red = Color(0xFFC81D24);
+  static const _green = Color(0xFF059669);
   static const _bg = Color(0xFFF7F7F8);
 
   late final TextEditingController _customerName;
-  final _title = TextEditingController();
+  late final TextEditingController _title;
   final _rego = TextEditingController();
   final _carType = TextEditingController();
   final _transmission = TextEditingController();
@@ -60,6 +71,13 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
   void initState() {
     super.initState();
     _customerName = TextEditingController(text: widget.customerName);
+    _title = TextEditingController(text: widget.prefilledTitle ?? '');
+    if (widget.prefilledRego != null) _rego.text = widget.prefilledRego!;
+    if (widget.prefilledCarType != null)
+      _carType.text = widget.prefilledCarType!;
+    if (widget.prefilledTransmission != null) {
+      _transmission.text = widget.prefilledTransmission!;
+    }
     _customerName.addListener(_recalc);
     _quoteBy.addListener(_recalc);
     _title.addListener(_recalc);
@@ -72,8 +90,8 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
 
   @override
   void dispose() {
-    _title.dispose();
     _customerName.dispose();
+    _title.dispose();
     _rego.dispose();
     _carType.dispose();
     _transmission.dispose();
@@ -105,8 +123,8 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
   double get _total => _items.fold(0, (s, i) => s + i.lineTotal);
 
   bool get _canPreview {
-    if (_customerName.text.trim().isEmpty) return false;
     if (_title.text.trim().isEmpty) return false;
+    if (_customerName.text.trim().isEmpty) return false;
     if (_quoteBy.text.trim().isEmpty) return false;
     return _items.any(
       (i) => i.product.text.trim().isNotEmpty && i.priceValue > 0,
@@ -126,8 +144,8 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
           customerEmail: widget.customerEmail,
           chatEmailToken: widget.chatEmailToken,
           data: {
-            'customer_name': _customerName.text.trim(),
             'title': _title.text.trim(),
+            'customer_name': _customerName.text.trim(),
             'rego': _rego.text.trim(),
             'car_type': _carType.text.trim(),
             'transmission': _transmission.text.trim(),
@@ -142,6 +160,9 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasWorkDesc =
+        widget.workDescription != null && widget.workDescription!.isNotEmpty;
+
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -164,6 +185,47 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  if (hasWorkDesc) ...[
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: _green.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _green.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.format_quote, size: 16, color: _green),
+                              SizedBox(width: 6),
+                              Text(
+                                'Customer described',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _green,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.workDescription!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.4,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   _section('Quote', [
                     _textField(_title, 'Quote title (e.g. Brake replacement)'),
                   ]),

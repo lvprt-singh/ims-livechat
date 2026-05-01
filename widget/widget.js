@@ -402,7 +402,13 @@ document.addEventListener("DOMContentLoaded", function () {
   if (msg.sender === "system") {
     if (msg.content && msg.content.includes("QUOTE_SENT|")) {
       renderQuoteCard(msg);
+    } else if (msg.content && msg.content.includes("QUOTE_REQUEST_SENT|")) {
+      renderQuoteRequestCard(msg);
     }
+    return;
+  }
+  if (msg.sender === "customer" && msg.content && msg.content.includes("QUOTE_DRAFT_SUBMITTED|")) {
+    renderQuoteSubmittedCard(msg);
     return;
   }
   const div = document.createElement("div");
@@ -436,6 +442,36 @@ function renderQuoteCard(msg) {
     </a>
   `;
   document.getElementById("ims-chat-messages").appendChild(wrap);
+  document.getElementById("ims-chat-messages").scrollTop = 99999;
+}
+
+function renderQuoteRequestCard(msg) {
+  const parts = (msg.content || "").replace("📝 QUOTE_REQUEST_SENT|", "").split("|");
+  const url = parts[1] || "";
+  const wrap = document.createElement("div");
+  wrap.className = "ims-quote-card";
+  wrap.innerHTML = `
+    <a href="${url}" target="_blank" rel="noopener" class="ims-quote-link" style="border-color: rgba(37,99,235,0.25);">
+      <div class="ims-quote-icon" style="background: rgba(37,99,235,0.1);">📝</div>
+      <div class="ims-quote-body">
+        <div class="ims-quote-title">Vehicle details requested</div>
+        <div class="ims-quote-meta">Tap to fill in your details</div>
+        <div class="ims-quote-cta" style="color:#2563EB;">Open form</div>
+      </div>
+    </a>
+  `;
+  document.getElementById("ims-chat-messages").appendChild(wrap);
+  document.getElementById("ims-chat-messages").scrollTop = 99999;
+}
+
+function renderQuoteSubmittedCard(msg) {
+  const parts = (msg.content || "").replace("📋 QUOTE_DRAFT_SUBMITTED|", "").split("|");
+  const title = parts[1] || "Details submitted";
+  const div = document.createElement("div");
+  div.className = "ims-msg customer";
+  div.style.background = "#059669";
+  div.textContent = `✓ ${title} — sent to mechanic`;
+  document.getElementById("ims-chat-messages").appendChild(div);
   document.getElementById("ims-chat-messages").scrollTop = 99999;
 }
 

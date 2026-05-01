@@ -55,6 +55,7 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
     final dateFmt = DateFormat('d MMM yyyy');
     final items = (widget.data['items'] as List).cast<Map<String, dynamic>>();
     final total = widget.data['total'] as double;
+    final phone = (widget.data['phone'] ?? '').toString();
 
     pdf.addPage(
       pw.Page(
@@ -92,7 +93,9 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        widget.data['title'] ?? 'QUOTE',
+                        (widget.data['title'] ?? 'QUOTE')
+                            .toString()
+                            .toUpperCase(),
                         style: pw.TextStyle(
                           fontSize: 18,
                           fontWeight: pw.FontWeight.bold,
@@ -111,7 +114,7 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
                       pw.Text(
                         dateFmt.format(_now),
                         style: const pw.TextStyle(
-                          fontSize: 11,
+                          fontSize: 10,
                           color: PdfColors.grey700,
                         ),
                       ),
@@ -145,6 +148,16 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
                             fontWeight: pw.FontWeight.bold,
                           ),
                         ),
+                        if (phone.isNotEmpty) ...[
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            phone,
+                            style: const pw.TextStyle(
+                              fontSize: 10,
+                              color: PdfColors.grey700,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -154,7 +167,9 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
                       children: [
                         _detail('Rego', widget.data['rego']),
                         _detail('Vehicle', widget.data['car_type']),
+                        _detail('Engine', widget.data['engine']),
                         _detail('Transmission', widget.data['transmission']),
+                        _detail('Odometer', widget.data['odometer']),
                       ],
                     ),
                   ),
@@ -353,8 +368,9 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
     );
   }
 
-  pw.Widget _detail(String label, String? value) {
-    if (value == null || value.isEmpty) return pw.SizedBox.shrink();
+  pw.Widget _detail(String label, dynamic value) {
+    final v = (value ?? '').toString();
+    if (v.isEmpty) return pw.SizedBox.shrink();
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 2),
       child: pw.RichText(
@@ -365,7 +381,7 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
               style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
             ),
             pw.TextSpan(
-              text: value,
+              text: v,
               style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
             ),
           ],
@@ -387,9 +403,9 @@ class _QuotePreviewScreenState extends State<QuotePreviewScreen> {
           'customer_email': widget.customerEmail,
           'chat_email_token': widget.chatEmailToken,
           'quote_number': _quoteNumber,
-          'title': widget.data['title'],
           'customer_name': widget.data['customer_name'],
           'quote_by': widget.data['quote_by'],
+          'title': widget.data['title'],
           'total': widget.data['total'],
           'pdf_base64': base64Pdf,
         },

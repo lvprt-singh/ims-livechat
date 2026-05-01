@@ -32,12 +32,14 @@
     text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;
   }
   label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+  .label-optional { font-weight: 400; color: #999; font-size: 11px; }
   input, textarea {
     width: 100%; padding: 12px 14px; border: 1px solid #e0e0e0;
     border-radius: 10px; font-size: 15px; font-family: inherit;
     background: #fafafa; transition: border-color 0.15s, background 0.15s;
   }
   input:focus, textarea:focus { outline: none; border-color: #c81d24; background: white; }
+  input.uppercase { text-transform: uppercase; }
   textarea { resize: vertical; min-height: 110px; }
   .field { margin-bottom: 14px; }
   .field:last-child { margin-bottom: 0; }
@@ -86,38 +88,54 @@
       <h2>What's the job?</h2>
       <div class="field">
         <label for="title">Quote title</label>
-        <input type="text" id="title" name="title" placeholder="e.g. Brake replacement" required maxlength="120" />
+        <input type="text" id="title" name="title" placeholder="e.g. Stage 2 Package" required maxlength="120" />
       </div>
     </div>
+
     <div class="card">
       <h2>Your details</h2>
       <div class="field">
         <label for="customer_name">Your name</label>
         <input type="text" id="customer_name" name="customer_name" required maxlength="120" />
       </div>
+      <div class="field">
+        <label for="phone">Phone <span class="label-optional">(optional)</span></label>
+        <input type="tel" id="phone" name="phone" placeholder="e.g. 0412 345 678" maxlength="20" />
+      </div>
     </div>
+
     <div class="card">
       <h2>Vehicle</h2>
       <div class="field">
         <label for="rego">Rego</label>
-        <input type="text" id="rego" name="rego" placeholder="e.g. ABC123" maxlength="20" autocapitalize="characters" />
+        <input type="text" id="rego" name="rego" class="uppercase" placeholder="e.g. ABC123" maxlength="20" autocapitalize="characters" />
       </div>
       <div class="field">
         <label for="car_type">Make / model</label>
         <input type="text" id="car_type" name="car_type" placeholder="e.g. 2018 Ford Falcon XR6" maxlength="120" />
       </div>
       <div class="field">
+        <label for="engine">Engine</label>
+        <input type="text" id="engine" name="engine" placeholder="e.g. LS2" maxlength="60" />
+      </div>
+      <div class="field">
         <label for="transmission">Transmission</label>
-        <input type="text" id="transmission" name="transmission" placeholder="Auto / Manual" maxlength="60" />
+        <input type="text" id="transmission" name="transmission" placeholder="e.g. ZF 6HP26 6-speed automatic" maxlength="60" />
+      </div>
+      <div class="field">
+        <label for="odometer">Odometer <span class="label-optional">(optional)</span></label>
+        <input type="text" id="odometer" name="odometer" placeholder="e.g. 145000 km" maxlength="20" />
       </div>
     </div>
+
     <div class="card">
       <h2>What needs doing?</h2>
       <div class="field">
         <label for="work_description">Describe the work you'd like quoted</label>
-        <textarea id="work_description" name="work_description" placeholder="As much detail as you can — what's wrong, any symptoms, when it started, anything you've already tried." required maxlength="2000"></textarea>
+        <textarea id="work_description" name="work_description" placeholder="Existing mods, build requirements, extra work needed." required maxlength="2000"></textarea>
       </div>
     </div>
+
     <button type="submit" id="submit-btn">Send to Mechanic</button>
     <div class="footer">
       <strong>Independent Motorsports</strong><br />
@@ -163,6 +181,8 @@
 
   if (!token) { showError("Invalid link"); }
 
+  const FIELDS = ["title","customer_name","phone","rego","car_type","engine","transmission","odometer","work_description"];
+
   async function loadDraft() {
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/get-quote-draft`, {
@@ -183,8 +203,7 @@
         showSubmitted();
         return;
       }
-      // Prefill if any saved values exist
-      ["title","customer_name","rego","car_type","transmission","work_description"].forEach(k => {
+      FIELDS.forEach(k => {
         if (data[k]) document.getElementById(k).value = data[k];
       });
       showForm();
@@ -197,15 +216,10 @@
     e.preventDefault();
     submitBtn.disabled = true;
     submitBtn.textContent = "Sending…";
-    const payload = {
-      token,
-      title: document.getElementById("title").value.trim(),
-      customer_name: document.getElementById("customer_name").value.trim(),
-      rego: document.getElementById("rego").value.trim(),
-      car_type: document.getElementById("car_type").value.trim(),
-      transmission: document.getElementById("transmission").value.trim(),
-      work_description: document.getElementById("work_description").value.trim(),
-    };
+    const payload = { token };
+    FIELDS.forEach(k => { payload[k] = document.getElementById(k).value.trim(); });
+    // Force rego uppercase server-side too
+    if (payload.rego) payload.rego = payload.rego.toUpperCase();
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-quote-draft`, {
         method: "POST",

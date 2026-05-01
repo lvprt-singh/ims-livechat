@@ -300,6 +300,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             prefilledRego: data['rego'] as String?,
             prefilledCarType: data['car_type'] as String?,
             prefilledTransmission: data['transmission'] as String?,
+            prefilledPhone: data['phone'] as String?,
+            prefilledEngine: data['engine'] as String?,
+            prefilledOdometer: data['odometer'] as String?,
             workDescription: data['work_description'] as String?,
           ),
         ),
@@ -794,7 +797,6 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final quoteNum = parts.isNotEmpty ? parts[0] : '';
     final url = parts.length > 1 ? parts[1] : '';
     final total = parts.length > 2 ? parts[2] : '';
-    final title = parts.length > 3 ? parts[3] : '';
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -848,9 +850,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        title.isNotEmpty
-                            ? '$title · $quoteNum · $total'
-                            : '$quoteNum · $total',
+                        '$quoteNum  ·  $total',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 2),
@@ -877,20 +877,20 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.blue.withValues(alpha: 0.08),
+            color: _jesse.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+            border: Border.all(color: _jesse.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.send_outlined, size: 14, color: Colors.blue),
+              const Icon(Icons.send_outlined, size: 14, color: _jesse),
               const SizedBox(width: 6),
               Text(
                 'Quote form sent · ${_formatTime(createdAt)}',
                 style: const TextStyle(
                   fontSize: 11,
-                  color: Colors.blue,
+                  color: _jesse,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -923,7 +923,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: const Color(0xFF059669).withValues(alpha: 0.3),
+                color: _stathi.withValues(alpha: 0.3),
                 width: 1.5,
               ),
               boxShadow: [
@@ -940,12 +940,12 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF059669).withValues(alpha: 0.1),
+                    color: _stathi.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.assignment_turned_in,
-                    color: Color(0xFF059669),
+                    color: _stathi,
                     size: 22,
                   ),
                 ),
@@ -974,7 +974,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                         'Tap to build quote · ${_formatTime(createdAt)}',
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Color(0xFF059669),
+                          color: _stathi,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

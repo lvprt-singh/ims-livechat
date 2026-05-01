@@ -34,6 +34,9 @@ class QuoteFormScreen extends StatefulWidget {
   final String? prefilledRego;
   final String? prefilledCarType;
   final String? prefilledTransmission;
+  final String? prefilledPhone;
+  final String? prefilledEngine;
+  final String? prefilledOdometer;
   final String? workDescription;
 
   const QuoteFormScreen({
@@ -46,6 +49,9 @@ class QuoteFormScreen extends StatefulWidget {
     this.prefilledRego,
     this.prefilledCarType,
     this.prefilledTransmission,
+    this.prefilledPhone,
+    this.prefilledEngine,
+    this.prefilledOdometer,
     this.workDescription,
   });
 
@@ -149,6 +155,9 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
             'rego': _rego.text.trim(),
             'car_type': _carType.text.trim(),
             'transmission': _transmission.text.trim(),
+            'phone': widget.prefilledPhone ?? '',
+            'engine': widget.prefilledEngine ?? '',
+            'odometer': widget.prefilledOdometer ?? '',
             'quote_by': _quoteBy.text.trim(),
             'items': validItems.map((i) => i.toJson()).toList(),
             'total': validItems.fold<double>(0, (s, i) => s + i.lineTotal),

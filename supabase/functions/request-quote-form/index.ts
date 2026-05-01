@@ -8,8 +8,7 @@ const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const CHAT_DOMAIN = "independentmotorsports.com.au";
 const FROM_EMAIL = `chat@${CHAT_DOMAIN}`;
-const FORM_BASE_URL =
-  `${SUPABASE_URL}/functions/v1/quote-form-page`;
+const FORM_BASE_URL = Deno.env.get("QUOTE_FORM_URL") ?? "https://ims-livechat.pages.dev/quote.html";
 
 Deno.serve(async (req) => {
   try {

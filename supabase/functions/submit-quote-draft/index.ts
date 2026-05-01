@@ -19,9 +19,13 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { token, title, customer_name, rego, car_type, transmission, work_description } = body;
+    const {
+  token, customer_name, phone,
+  rego, car_type, engine, transmission, odometer,
+  work_description,
+} = body;
 
-    if (!token || !title?.trim() || !customer_name?.trim() || !work_description?.trim()) {
+    if (!token || !customer_name?.trim() || !phone?.trim() || !engine?.trim() || !work_description?.trim()) {
       return new Response("Missing required fields", { status: 400, headers: corsHeaders });
     }
 
@@ -42,7 +46,6 @@ Deno.serve(async (req) => {
       .from("quote_drafts")
       .update({
         status: "submitted",
-        title: title.trim(),
         customer_name: customer_name.trim(),
         rego: (rego ?? "").trim(),
         car_type: (car_type ?? "").trim(),
@@ -57,7 +60,7 @@ Deno.serve(async (req) => {
       return new Response(`DB error: ${updErr.message}`, { status: 500, headers: corsHeaders });
     }
 
-    const messageContent = `📋 QUOTE_DRAFT_SUBMITTED|${token}|${title.trim()}|${customer_name.trim()}`;
+    const messageContent = `📋 QUOTE_DRAFT_SUBMITTED|${token}|${customer_name.trim()}`;
     await supabase.from("messages").insert({
       chat_id: draft.chat_id,
       sender: "customer",

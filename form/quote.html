@@ -83,15 +83,6 @@
     <p>Your mechanic will prepare a quote and send it through soon. You can close this page.</p>
   </div>
 
-  <form id="quote-form" class="hidden">
-    <div class="card">
-      <h2>What's the job?</h2>
-      <div class="field">
-        <label for="title">Quote title</label>
-        <input type="text" id="title" name="title" placeholder="e.g. Stage 2 Package" required maxlength="120" />
-      </div>
-    </div>
-
     <div class="card">
       <h2>Your details</h2>
       <div class="field">
@@ -99,10 +90,10 @@
         <input type="text" id="customer_name" name="customer_name" required maxlength="120" />
       </div>
       <div class="field">
-        <label for="phone">Phone <span class="label-optional">(optional)</span></label>
-        <input type="tel" id="phone" name="phone" placeholder="e.g. 0412 345 678" maxlength="20" />
-      </div>
-    </div>
+  <label for="phone">Phone</label>
+  <input type="tel" id="phone" name="phone" placeholder="e.g. 0412 345 678" maxlength="20" required autocomplete="off" />
+  <p style="font-size: 11px; color: #999; margin-top: 6px;">Invalid phone numbers won't receive a quote.</p>
+</div>
 
     <div class="card">
       <h2>Vehicle</h2>
@@ -181,7 +172,7 @@
 
   if (!token) { showError("Invalid link"); }
 
-  const FIELDS = ["title","customer_name","phone","rego","car_type","engine","transmission","odometer","work_description"];
+  const FIELDS = ["customer_name","phone","rego","car_type","engine","transmission","odometer","work_description"];
 
   async function loadDraft() {
     try {

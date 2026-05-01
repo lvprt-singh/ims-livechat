@@ -906,9 +906,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         .replaceFirst('📋 QUOTE_DRAFT_SUBMITTED|', '')
         .split('|');
     final token = parts.isNotEmpty ? parts[0] : '';
-    final title = parts.length > 1 ? parts[1] : '';
-    final name = parts.length > 2 ? parts[2] : '';
-
+    final name = parts.length > 1 ? parts[1] : '';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Center(
@@ -964,7 +962,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        title.isNotEmpty ? '$title · $name' : name,
+                        name,
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,

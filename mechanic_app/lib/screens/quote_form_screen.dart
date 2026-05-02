@@ -65,10 +65,10 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
   static const _bg = Color(0xFFF7F7F8);
 
   late final TextEditingController _customerName;
-  late final TextEditingController _title;
   final _rego = TextEditingController();
   final _carType = TextEditingController();
   final _transmission = TextEditingController();
+  final _odometer = TextEditingController();
   final _quoteBy = TextEditingController();
 
   final List<QuoteLineItem> _items = [QuoteLineItem()];
@@ -77,16 +77,22 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
   void initState() {
     super.initState();
     _customerName = TextEditingController(text: widget.customerName);
-    _title = TextEditingController(text: widget.prefilledTitle ?? '');
     if (widget.prefilledRego != null) _rego.text = widget.prefilledRego!;
     if (widget.prefilledCarType != null)
       _carType.text = widget.prefilledCarType!;
     if (widget.prefilledTransmission != null) {
       _transmission.text = widget.prefilledTransmission!;
     }
+
+    if (widget.prefilledOdometer != null) {
+      _odometer.text = widget.prefilledOdometer!.replaceAll(
+        RegExp(r'[^0-9]'),
+        '',
+      );
+    }
     _customerName.addListener(_recalc);
     _quoteBy.addListener(_recalc);
-    _title.addListener(_recalc);
+
     for (final item in _items) {
       item.product.addListener(_recalc);
       item.qty.addListener(_recalc);
@@ -97,10 +103,10 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
   @override
   void dispose() {
     _customerName.dispose();
-    _title.dispose();
     _rego.dispose();
     _carType.dispose();
     _transmission.dispose();
+    _odometer.dispose();
     _quoteBy.dispose();
     for (final item in _items) {
       item.dispose();
@@ -129,7 +135,6 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
   double get _total => _items.fold(0, (s, i) => s + i.lineTotal);
 
   bool get _canPreview {
-    if (_title.text.trim().isEmpty) return false;
     if (_customerName.text.trim().isEmpty) return false;
     if (_quoteBy.text.trim().isEmpty) return false;
     return _items.any(
@@ -150,14 +155,15 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
           customerEmail: widget.customerEmail,
           chatEmailToken: widget.chatEmailToken,
           data: {
-            'title': _title.text.trim(),
             'customer_name': _customerName.text.trim(),
             'rego': _rego.text.trim(),
             'car_type': _carType.text.trim(),
             'transmission': _transmission.text.trim(),
             'phone': widget.prefilledPhone ?? '',
             'engine': widget.prefilledEngine ?? '',
-            'odometer': widget.prefilledOdometer ?? '',
+            'odometer': _odometer.text.trim().isEmpty
+                ? ''
+                : '${_odometer.text.trim()} km',
             'quote_by': _quoteBy.text.trim(),
             'items': validItems.map((i) => i.toJson()).toList(),
             'total': validItems.fold<double>(0, (s, i) => s + i.lineTotal),
@@ -235,10 +241,6 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  _section('Quote', [
-                    _textField(_title, 'Quote title (e.g. Brake replacement)'),
-                  ]),
-                  const SizedBox(height: 16),
                   _section('Customer', [
                     _textField(_customerName, 'Customer name'),
                     _textField(
@@ -248,6 +250,14 @@ class _QuoteFormScreenState extends State<QuoteFormScreen> {
                     ),
                     _textField(_carType, 'Car make / model'),
                     _textField(_transmission, 'Transmission'),
+                    _textField(
+                      _odometer,
+                      'Odometer (km)',
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: false,
+                      ),
+                      formatters: [FilteringTextInputFormatter.digitsOnly],
+                    ),
                   ]),
                   const SizedBox(height: 16),
                   _section('Line items', [

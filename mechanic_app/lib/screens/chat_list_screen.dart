@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +17,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
   List<Map<String, dynamic>> _chats = [];
   bool _loading = true;
   RealtimeChannel? _channel;
+  Timer? _debounce;
+  bool _loadFailed = false;
 
   static const _red = Color(0xFFC81D24);
   static const _jesse = Color(0xFF2563EB);
@@ -32,8 +35,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _channel?.unsubscribe();
     super.dispose();
+  }
+
+  // Coalesce bursts of realtime events into one reload
+  void _loadChatsDebounced() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(seconds: 2), _loadChats);
   }
 
   void _subscribeToChanges() {
@@ -43,13 +53,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'messages',
-          callback: (_) => _loadChats(),
+          callback: (_) => _loadChatsDebounced(),
         )
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'chats',
-          callback: (_) => _loadChats(),
+          callback: (_) => _loadChatsDebounced(),
         )
         .subscribe((status, [error]) {
           debugPrint('List realtime: $status error: $error');
@@ -77,14 +87,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
             '*, customers(name, email), messages(content, sender, created_at)',
           )
           .eq('status', 'open')
-          .order('last_message_at', ascending: false);
+          .order('last_message_at', ascending: false)
+          .timeout(const Duration(seconds: 15));
       if (!mounted) return;
       setState(() {
         _chats = List<Map<String, dynamic>>.from(data);
         _loading = false;
+        _loadFailed = false;
       });
     } catch (e) {
       debugPrint('Load chats error: $e');
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadFailed = true;
+      });
     }
   }
 
@@ -218,6 +235,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
       body: SafeArea(
         child: _loading
             ? const Center(child: CircularProgressIndicator(color: _red))
+            : _loadFailed && _chats.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Could not load chats'),
+                    TextButton(
+                      onPressed: _loadChats,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              )
             : _chats.isEmpty
             ? _emptyState()
             : RefreshIndicator(

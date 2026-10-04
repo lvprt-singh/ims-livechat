@@ -278,17 +278,17 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Heartbeat — updates customer_last_seen_at every 30s while widget is open
+  // Heartbeat — updates customer_last_seen_at every 2min while widget is open
   // Powers the 5-min inactivity rule that triggers outbound emails
   function startHeartbeat() {
     if (heartbeatInterval) return;
     // Fire once immediately
     touchActivity();
-    heartbeatInterval = setInterval(touchActivity, 30000);
+    heartbeatInterval = setInterval(touchActivity, 120000);
   }
 
   async function touchActivity() {
-    if (!chatId) return;
+    if (!chatId || document.hidden) return;
     try {
       await supabase.from("chats")
         .update({ customer_last_seen_at: new Date().toISOString() })
